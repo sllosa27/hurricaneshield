@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEMO_ALERTS } from "./demoAlerts.js";
+import { loadOfficial, offlineVerdict, saveOfficial } from "./offline.js";
 
 const VERDICT_COPY = {
   suspicious: "Likely misinformation",
@@ -7,27 +8,67 @@ const VERDICT_COPY = {
   uncertain: "Can't confirm",
 };
 
+function timeAgo(ms) {
+  const mins = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const h = Math.round(mins / 60);
+  return h < 24 ? `${h} hr ago` : `${Math.round(h / 24)} days ago`;
+}
+
 export default function App() {
   const [text, setText] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [online, setOnline] = useState(navigator.onLine);
+  const [official, setOfficial] = useState(null); // { area, alerts, savedAt, fromCache }
+
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
+
+  useEffect(() => {
+    async function loadAlerts() {
+      try {
+        const r = await fetch("/api/official-alerts");
+        if (!r.ok) throw new Error("NWS unavailable");
+        const data = await r.json();
+        saveOfficial(data);
+        setOfficial({ ...data, savedAt: Date.now(), fromCache: false });
+      } catch {
+        const saved = loadOfficial();
+        setOfficial(saved ? { ...saved, fromCache: true } : null);
+      }
+    }
+    loadAlerts();
+  }, [online]);
 
   async function check() {
     setLoading(true);
     setError("");
     setResult(null);
     try {
+      if (!navigator.onLine) throw new TypeError("offline");
       const r = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
       const data = await r.json();
+      if (r.status >= 500) throw new TypeError(data.error || "server unavailable");
       if (!r.ok) throw new Error(data.error || "Something went wrong.");
       setResult(data);
     } catch (e) {
-      setError(e.message);
+      if (e instanceof TypeError || e instanceof SyntaxError) {
+        setResult(offlineVerdict(text, official ?? loadOfficial()));
+      } else {
+        setError(e.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -35,6 +76,12 @@ export default function App() {
 
   return (
     <main className="page">
+      {!online && (
+        <p className="banner" role="status">
+          You're offline. Checks use basic rules and your last saved official alerts.
+        </p>
+      )}
+
       <header className="masthead">
         <h1>HurricaneShield</h1>
         <p>Paste a storm alert. We check whether it holds up before you share it.</p>
@@ -65,6 +112,9 @@ export default function App() {
 
       {result && (
         <section className={`verdict ${result.verdict}`} aria-live="polite">
+          {result.mode === "offline" && (
+            <p className="mode">Basic check: the AI check wasn't reachable, so this uses simple rules.</p>
+          )}
           <div className="verdict-head">
             <h2>{VERDICT_COPY[result.verdict]}</h2>
             <p className="conf">{Math.round(result.confidence * 100)}% confidence</p>
@@ -81,6 +131,31 @@ export default function App() {
           </p>
         </section>
       )}
+
+      <section className="feed" aria-label="Official alerts">
+        <h2>Official alerts right now{official ? ` (${official.area})` : ""}</h2>
+        {!official && <p className="muted">Official alerts couldn't be loaded, and there's no saved copy yet.</p>}
+        {official && (
+          <>
+            <p className="muted">
+              National Weather Service.{" "}
+              {official.fromCache ? `Saved copy from ${timeAgo(official.savedAt)}.` : "Updated just now."}
+            </p>
+            {official.alerts.length === 0 ? (
+              <p>No active alerts for this area.</p>
+            ) : (
+              <ul className="alerts">
+                {official.alerts.map((a) => (
+                  <li key={a.id}>
+                    <strong>{a.event}</strong>
+                    <span>{a.areaDesc}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </section>
     </main>
   );
 }

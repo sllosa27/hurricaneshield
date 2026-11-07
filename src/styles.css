@@ -50,3 +50,11 @@ textarea { width: 100%; font: inherit; padding: 0.9rem; border: 1px solid var(--
 .official { margin: 0; font-size: 0.95rem; border-top: 1px solid var(--line); padding-top: 0.8rem; }
 .official a { color: var(--signal); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.banner { margin: 0 0 1.5rem; padding: 0.7rem 1rem; border-left: 8px solid var(--warn); background: var(--panel); border-radius: 6px; font-weight: 600; }
+.mode { margin: 0 0 0.8rem; font-size: 0.95rem; color: var(--warn); font-weight: 600; }
+.feed { margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: 1.5rem; }
+.feed h2 { font: 700 1.6rem/1.1 "Barlow Condensed", sans-serif; margin: 0 0 0.3rem; }
+.muted { margin: 0 0 0.8rem; font-size: 0.95rem; opacity: 0.8; }
+.alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.alerts li { display: grid; gap: 0.1rem; padding: 0.6rem 0.8rem; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.alerts span { font-size: 0.9rem; opacity: 0.8; }
