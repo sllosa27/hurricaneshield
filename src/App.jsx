@@ -227,6 +227,12 @@ export default function App() {
           </ul>
         )}
       </section>
+
+      <footer className="site-footer">
+        HurricaneShield never replaces official sources. Always confirm with{" "}
+        <a href="https://www.weather.gov" target="_blank" rel="noreferrer">weather.gov</a> and{" "}
+        <a href="https://www.hurricanes.gov" target="_blank" rel="noreferrer">hurricanes.gov</a>.
+      </footer>
     </div>
   );
 }
