@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { DEMO_ALERTS } from "./demoAlerts.js";
+import TrendChart from "./TrendChart.jsx";
 import { loadOfficial, offlineVerdict, saveOfficial } from "./offline.js";
 
 const VERDICT_COPY = {
@@ -50,12 +52,15 @@ function Radar({ mode }) {
 }
 
 export default function App() {
+  // Login state from Auth0. getAccessTokenSilently gives us the "pass" to send to our server.
+  const { isAuthenticated, isLoading: authLoading, user, loginWithRedirect, logout, getAccessTokenSilently, error: authError } = useAuth0();
   const [text, setText] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [official, setOfficial] = useState(null); // { area, alerts, savedAt, fromCache }
+  const [statsVersion, setStatsVersion] = useState(0); // bump to reload the trend chart
 
   useEffect(() => {
     const up = () => setOnline(true);
@@ -87,15 +92,17 @@ export default function App() {
     setResult(null);
     try {
       if (!navigator.onLine) throw new TypeError("offline");
+      const token = await getAccessTokenSilently();
       const r = await fetch("/api/verify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text }),
       });
       const data = await r.json();
       if (r.status >= 500) throw new TypeError(data.error || "server unavailable");
       if (!r.ok) throw new Error(data.error || "Something went wrong.");
       setResult(data);
+      setStatsVersion((v) => v + 1); // a new check was saved, so refresh the chart
     } catch (e) {
       if (e instanceof TypeError || e instanceof SyntaxError) {
         setResult(offlineVerdict(text, official ?? loadOfficial()));
@@ -119,9 +126,21 @@ export default function App() {
             <p>Storm alert verification</p>
           </div>
         </div>
-        <div className={`status ${online ? "on" : "off"}`} role="status">
-          <span className="dot" />
-          {online ? "Online" : "Offline mode"}
+        <div className="top-right">
+          <div className={`status ${online ? "on" : "off"}`} role="status">
+            <span className="dot" />
+            {online ? "Online" : "Offline mode"}
+          </div>
+          {!authLoading && (isAuthenticated ? (
+            <div className="account">
+              <span className="who">{user?.email || user?.name}</span>
+              <button className="ghost" onClick={() => logout({ logoutParams: { returnTo: window.location.origin + "/" } })}>
+                Log out
+              </button>
+            </div>
+          ) : (
+            <button className="ghost" onClick={() => loginWithRedirect()}>Log in</button>
+          ))}
         </div>
       </header>
 
@@ -148,9 +167,19 @@ export default function App() {
               </button>
             ))}
           </div>
-          <button className="primary" onClick={check} disabled={loading || !text.trim()}>
-            {loading ? "Analyzing…" : "Check this alert"}
-          </button>
+          {isAuthenticated ? (
+            <button className="primary" onClick={check} disabled={loading || !text.trim()}>
+              {loading ? "Analyzing…" : "Check this alert"}
+            </button>
+          ) : (
+            <>
+              <button className="primary" onClick={() => loginWithRedirect()} disabled={authLoading}>
+                Log in to check
+              </button>
+              <p className="muted">Sign in to run a check. The official alerts below are open to everyone.</p>
+              {authError && <p role="alert" className="error">Login problem: {authError.message}</p>}
+            </>
+          )}
           {error && <p role="alert" className="error">{error}</p>}
         </section>
 
@@ -200,6 +229,8 @@ export default function App() {
           )}
         </section>
       </main>
+
+      <TrendChart refreshKey={statsVersion} />
 
       <section className="panel feed" aria-label="Official alerts">
         <div className="feed-head">
