@@ -29,6 +29,9 @@ Running a check requires login. Official alerts stay public.
 2. Copy its connection string into `.env` as `DATABASE_URL=...`. It contains a password, so never commit or share it.
 3. Run `npm install`, restart the app, and run a check. The table is created automatically.
 
+## Swarms API 
+ **Swarms API:** a swarm of AI agents reviews each storm alert from different angles (for example, source credibility, language and tone, and consistency with official data) and their findings are combined into the final verdict. Requires `SWARMS_API_KEY` in `.env`. See `server/swarm.js`.
+
 ## Deploy (Render)
 The Express server also serves the built website, so the whole app is one Render "Web Service".
 1. On render.com: **New > Web Service**, connect this GitHub repo, branch `main`.
