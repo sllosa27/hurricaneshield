@@ -20,6 +20,15 @@ Running a check requires login. Official alerts stay public.
 2. Copy its connection string into `.env` as `DATABASE_URL=...` (it contains a password, so never commit or share it).
 3. Run `npm install`, restart the app, and run a check. The table is created automatically.
 
+## Deploy (Render)
+The Express server also serves the built website, so the whole app is one Render "Web Service".
+1. On render.com: **New > Web Service**, connect this GitHub repo, branch `main`.
+2. Build command: `npm install --include=dev && npm run build`
+3. Start command: `npm start`
+4. In the service's **Environment** tab, add the same values as `.env` (Gemini, Auth0, `DATABASE_URL`). Never commit them.
+5. In Auth0 (HurricaneShield app), add `https://<your-app>.onrender.com/` to Allowed Callback URLs, Allowed Logout URLs and Allowed Web Origins.
+6. Every merge to `main` redeploys automatically. The free plan sleeps after 15 minutes idle, so open the site a minute before a demo.
+
 ## Challenge map (fill in as you build)
 - Gemini API: `server/index.js`, `server/prompt.js`
 - EC-Council: _offline support (hours 4-5)_
